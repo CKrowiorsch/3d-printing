@@ -8,17 +8,8 @@ root = Path(__file__).resolve().parent
 width, height, max_z, base_z = 165.98218, 143.54388, 2.32, 0.80
 n = 257
 im = Image.open(root / 'motiv.png').convert('L')
-# Der zentrale Bildausschnitt entfernt den im Ausgangsbild enthaltenen weißen Außenbereich.
-w, h = im.size
-im = im.crop((int(w * .15), int(h * .15), int(w * .85), int(h * .85)))
+
 im = ImageOps.fit(im, (1024, 1024), method=Image.Resampling.LANCZOS)
-draw = ImageDraw.Draw(im)
-font = ImageFont.truetype('C:/Windows/Fonts/arialbd.ttf', 62)
-text_mask = Image.new('L', im.size, 0)
-mask_draw = ImageDraw.Draw(text_mask)
-mask_draw.text((512, 789), 'Cyberpunk 2077', font=font, fill=255, anchor='mm')
-draw.text((512, 789), 'Cyberpunk 2077', font=font, fill=255, anchor='mm', stroke_width=3, stroke_fill=0)
-im.save(root / 'motiv_mit_schrift.png')
 im = im.filter(ImageFilter.GaussianBlur(1.0))
 pix = np.asarray(im, dtype=np.float32) / 255
 ys = np.linspace(-height/2, height/2, n)
@@ -30,7 +21,7 @@ iy = np.clip(np.rint((.5 - y / height) * 1023).astype(int), 0, 1023)
 tone = pix[iy, ix]; tone = (tone - tone.min()) / (tone.max() - tone.min())
 z = base_z + (max_z - base_z) * tone
 # Die Schrift ragt zusätzlich 0,23 mm über die hellsten Bildbereiche hinaus.
-mask = np.asarray(text_mask)[iy, ix] > 127
+mask = (iy >= 715) & (iy <= 845) & (ix >= 250) & (ix <= 760) & (pix[iy, ix] > 0.85)
 z = np.where(mask, 2.55, z)
 top = np.stack((x, y, z), axis=-1).reshape(-1, 3)
 bot = top.copy(); bot[:, 2] = 0
@@ -51,6 +42,8 @@ with open(root/'cyberpunk-2077.stl','wb') as f:
 edges=np.concatenate((faces[:,[0,1]],faces[:,[1,2]],faces[:,[2,0]])); edges.sort(axis=1)
 _, counts=np.unique(edges,axis=0,return_counts=True)
 print('Dimensions mm:',np.ptp(v,axis=0),'triangles:',len(faces),'nonmanifold edges:',np.count_nonzero(counts != 2))
+
+
 
 
 
