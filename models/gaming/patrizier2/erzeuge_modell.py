@@ -6,7 +6,8 @@ from PIL import Image, ImageOps, ImageFilter, ImageDraw, ImageFont
 
 root = Path(__file__).resolve().parent
 width, height, max_z, base_z = 165.98218, 143.54388, 2.32, 0.80
-n = 257
+# Maximal etwa 0,32 mm Rasterweite für feinere Konturen.
+n = 513
 im = Image.open(root / 'motiv.png').convert('L')
 im = ImageOps.fit(im, (1024, 1024), method=Image.Resampling.LANCZOS)
 draw = ImageDraw.Draw(im)
@@ -16,7 +17,8 @@ mask_draw = ImageDraw.Draw(text_mask)
 mask_draw.text((512, 789), 'Patrizier 2', font=font, fill=255, anchor='mm')
 draw.text((512, 789), 'Patrizier 2', font=font, fill=255, anchor='mm', stroke_width=3, stroke_fill=0)
 im.save(root / 'motiv_mit_schrift.png')
-im = im.filter(ImageFilter.GaussianBlur(1.0))
+# Nur leicht glätten, damit Konturen und Schraffuren scharf bleiben.
+im = im.filter(ImageFilter.GaussianBlur(0.35))
 pix = np.asarray(im, dtype=np.float32) / 255
 ys = np.linspace(-height/2, height/2, n)
 us = np.linspace(-1, 1, n)
@@ -56,6 +58,7 @@ print('Dimensions mm:',np.ptp(v,axis=0),'triangles:',len(faces),'nonmanifold edg
 # Vorhandenes Bambu-Projekt mit der aktuellen Geometrie aktualisieren.
 # Palette, Schichtwechsel und die geprüften Paketverknüpfungen bleiben erhalten.
 import zipfile
+import re
 project = root / 'Patrizier2_Ahsoka_Farben.3mf'
 if project.exists():
     from io import StringIO
@@ -71,6 +74,8 @@ if project.exists():
     with zipfile.ZipFile(project) as source, zipfile.ZipFile(temporary, 'w', zipfile.ZIP_DEFLATED) as target:
         for entry in source.infolist():
             data = xml.getvalue().encode('utf-8') if entry.filename == '3D/Objects/object_10.model' else source.read(entry.filename)
+            if entry.filename == 'Metadata/model_settings.config':
+                data = re.sub(rb'face_count="[0-9]+"', f'face_count="{len(faces)}"'.encode(), data)
             target.writestr(entry, data)
     temporary.replace(project)
     print('3MF-Geometrie aktualisiert:', project.name)
