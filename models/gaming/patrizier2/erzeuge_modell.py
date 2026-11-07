@@ -52,3 +52,25 @@ print('Dimensions mm:',np.ptp(v,axis=0),'triangles:',len(faces),'nonmanifold edg
 
 
 
+
+# Vorhandenes Bambu-Projekt mit der aktuellen Geometrie aktualisieren.
+# Palette, Schichtwechsel und die geprüften Paketverknüpfungen bleiben erhalten.
+import zipfile
+project = root / 'Patrizier2_Ahsoka_Farben.3mf'
+if project.exists():
+    from io import StringIO
+    xml = StringIO()
+    xml.write('<?xml version="1.0" encoding="UTF-8"?><model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:p="http://schemas.microsoft.com/3dmanufacturing/production/2015/06" requiredextensions="p"><resources><object id="1" p:UUID="000a0000-81cb-4c03-9d28-80fed5dfa1dc" type="model"><mesh><vertices>')
+    for px, py, pz in v:
+        xml.write(f'<vertex x="{px:.7g}" y="{py:.7g}" z="{pz:.7g}"/>')
+    xml.write('</vertices><triangles>')
+    for a, b, c in faces:
+        xml.write(f'<triangle v1="{a}" v2="{b}" v3="{c}"/>')
+    xml.write('</triangles></mesh></object></resources></model>')
+    temporary = project.with_suffix('.tmp')
+    with zipfile.ZipFile(project) as source, zipfile.ZipFile(temporary, 'w', zipfile.ZIP_DEFLATED) as target:
+        for entry in source.infolist():
+            data = xml.getvalue().encode('utf-8') if entry.filename == '3D/Objects/object_10.model' else source.read(entry.filename)
+            target.writestr(entry, data)
+    temporary.replace(project)
+    print('3MF-Geometrie aktualisiert:', project.name)
